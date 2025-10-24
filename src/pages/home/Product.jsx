@@ -29,7 +29,11 @@ export function Product({ product, loadCart }) {
   return (
     <div className="product-container" key={product.id}>
       <div className="product-image-container">
-        <img className="product-image" src={product.image} />
+        <img
+          className="product-image"
+          src={product.image}
+          data-testid="product-image"
+        />
       </div>
 
       <div className="product-name limit-text-to-2-lines">{product.name}</div>
@@ -38,6 +42,7 @@ export function Product({ product, loadCart }) {
         <img
           className="product-rating-stars"
           src={`images/ratings/rating-${product.rating.stars * 10}.png`}
+          data-testid="rating-image"
         />
         <div className="product-rating-count link-primary">
           {product.rating.count}
@@ -63,7 +68,10 @@ export function Product({ product, loadCart }) {
 
       <div className="product-spacer"></div>
 
-      <div className="added-to-cart" style={{ opacity: showAddedMessage ? 1 : 0 }}>
+      <div
+        className="added-to-cart"
+        style={{ opacity: showAddedMessage ? 1 : 0 }}
+      >
         <img src={CheckmarkIcon} />
         Added
       </div>
