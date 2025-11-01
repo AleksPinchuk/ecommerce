@@ -1,27 +1,25 @@
 import { it, expect, describe, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router";
+import { PaymentSummary } from "./PaymentSummary";
 import userEvent from "@testing-library/user-event";
-import { Product } from "./Product";
 import axios from "axios";
 
 vi.mock("axios");
 
-describe("Product component", () => {
-  let product;
+describe("PaymentSummary component", () => {
+  let paymentSummary;
   let loadCart;
   let user;
 
   beforeEach(() => {
-    product = {
-      id: "e43638ce-6aa0-4b85-b27f-e1d07eb678c6",
-      image: "images/products/athletic-cotton-socks-6-pairs.jpg",
-      name: "Black and Gray Athletic Cotton Socks - 6 Pairs",
-      rating: {
-        stars: 4.5,
-        count: 87,
-      },
-      priceCents: 1090,
-      keywords: ["socks", "sports", "apparel"],
+    paymentSummary = {
+      totalItems: 3,
+      productCostCents: 4275,
+      shippingCostCents: 499,
+      totalCostBeforeTaxCents: 4774,
+      taxCents: 477,
+      totalCostCents: 5251,
     };
 
     loadCart = vi.fn();
@@ -29,64 +27,61 @@ describe("Product component", () => {
     user = userEvent.setup();
   });
 
-  it("displays the product details correctly", () => {
-    render(<Product product={product} loadCart={loadCart} />);
+  it("displays the correct details", async () => {
+    render(
+      <MemoryRouter>
+        <PaymentSummary paymentSummary={paymentSummary} loadCart={loadCart} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("Items (3):")).toBeInTheDocument();
+
+    // There are multiple ways to check the text inside an element.
+    // 1. within() + getByText() + toBeInTheDocument()
     expect(
-      screen.getByText("Black and Gray Athletic Cotton Socks - 6 Pairs")
+      within(screen.getByTestId("payment-summary-product-cost")).getByText(
+        "$42.75"
+      )
     ).toBeInTheDocument();
 
-    expect(screen.getByText("$10.90")).toBeInTheDocument();
+    // 2. getByTestId() + toHaveTextContent()
+    // (toHaveTextContent() checks the text inside an element)
+    // This solution is a little cleaner in this case.
+    expect(
+      screen.getByTestId("payment-summary-shipping-cost")
+    ).toHaveTextContent("$4.99");
 
-    expect(screen.getByTestId("product-image")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("payment-summary-total-before-tax")
+    ).toHaveTextContent("$47.74");
 
-    expect(screen.getByTestId("product-image")).toHaveAttribute(
-      "src",
-      "images/products/athletic-cotton-socks-6-pairs.jpg"
+    expect(screen.getByTestId("payment-summary-tax")).toHaveTextContent(
+      "$4.77"
     );
 
-    expect(screen.getByText("87")).toBeInTheDocument();
-
-    expect(screen.getByTestId("rating-image")).toBeInTheDocument();
-
-    expect(screen.getByTestId("rating-image")).toHaveAttribute(
-      "src",
-      "images/ratings/rating-45.png"
+    expect(screen.getByTestId("payment-summary-total")).toHaveTextContent(
+      "$52.51"
     );
   });
 
-  it("Adds a product to the cart", async () => {
-    render(<Product product={product} loadCart={loadCart} />);
-    const addToCartButton = screen.getByTestId("add-to-cart-button");
-    await user.click(addToCartButton);
+  it("place an order", async () => {
+    function Location() {
+      const location = useLocation();
+      return <div data-testid="url-path">{location.pathname}</div>;
+    }
 
-    expect(axios.post).toHaveBeenCalledWith("/api/cart-items", {
-      productId: "e43638ce-6aa0-4b85-b27f-e1d07eb678c6",
-      quantity: 1,
-    });
+    render(
+      <MemoryRouter>
+        <PaymentSummary paymentSummary={paymentSummary} loadCart={loadCart} />
+        <Location />
+      </MemoryRouter>
+    );
 
+    const placeOrderButton = screen.getByTestId("place-order-button");
+    await user.click(placeOrderButton);
+
+    expect(axios.post).toHaveBeenCalledWith("/api/orders");
     expect(loadCart).toHaveBeenCalled();
-  });
-
-  it("Selects a quantity", async () => {
-    render(<Product product={product} loadCart={loadCart} />);
-
-    const quantitySelect = screen.getByTestId("quantity-selector");
-
-    expect(quantitySelect).toHaveValue("1");
-
-    await user.selectOptions(quantitySelect, "3");
-
-    expect(quantitySelect).toHaveValue("3");
-
-    const addToCartButton = screen.getByTestId("add-to-cart-button");
-    await user.click(addToCartButton);
-
-    expect(axios.post).toHaveBeenCalledWith("/api/cart-items", {
-      productId: "e43638ce-6aa0-4b85-b27f-e1d07eb678c6",
-      quantity: 3,
-    });
-
-    expect(loadCart).toHaveBeenCalled();
+    expect(screen.getByTestId("url-path")).toHaveTextContent("/orders");
   });
 });
-
